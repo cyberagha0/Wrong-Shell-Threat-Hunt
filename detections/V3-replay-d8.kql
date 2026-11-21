@@ -1,0 +1,23 @@
+// V3
+// Replay D8 over the hunt window
+let SystemNames = dynamic(["svchost.exe", "lsass.exe", "services.exe", "csrss.exe", "winlogon.exe",
+    "smss.exe", "wininit.exe", "spoolsv.exe", "taskhostw.exe", "dllhost.exe", "conhost.exe", "rundll32.exe"]);
+let s = datetime(2026-10-15 10:00:00);
+let e = datetime(2026-10-15 17:00:00);
+let masq = SysmonProcess_CL
+    | where Campaign == "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e)
+    | extend FileName = tolower(tostring(split(Image, @"\")[-1]))
+    | where replace_regex(FileName, @"\d+\.exe$", ".exe") in (SystemNames)
+    | where not(Image has_any (@"\Windows\System32\", @"\Windows\SysWOW64\", @"\Windows\WinSxS\"))
+    | summarize MasqTime = min(todatetime(OriginalTime)), MasqImage = any(Image) by Computer;
+let runkey = SysmonRegistryEvent_CL
+    | where Campaign == "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e)
+    | where EventType == "SetValue" and TargetObject has @"\CurrentVersion\Run"
+    | where Details has_any (@"\Downloads\", @"\Pictures\", @"\AppData\", @"\Temp\",
+        @"\Public\", @"\Documents\")
+    | summarize RunKeyTime = min(todatetime(OriginalTime)), RunTarget = any(Details) by Computer;
+masq
+| join kind=inner runkey on Computer
+| project Computer, MasqTime, MasqImage, RunKeyTime, RunTarget

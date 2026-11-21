@@ -1,0 +1,12 @@
+// D5
+// Remote logon from a public address; an attack-distribution client name raises it to High
+SecurityEvent_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where EventID == 4624
+| where toint(LogonType) in (3, 10)
+| where isnotempty(IpAddress) and IpAddress != "-"
+| where not(ipv4_is_private(IpAddress)) and IpAddress != "127.0.0.1"
+| extend AttackDistro = WorkstationName in~ ("kali", "parrot", "blackarch", "pentoo")
+| extend Severity = iff(AttackDistro, "High", "Medium")
+| project OriginalTime, Computer, Account, IpAddress, WorkstationName, LogonType, Severity
+| order by Severity asc, OriginalTime asc

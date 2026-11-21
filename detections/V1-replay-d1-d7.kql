@@ -1,0 +1,65 @@
+// V1
+// Replay D1 to D7 over the hunt window in one run and return hits per rule
+let s = datetime(2026-10-15 10:00:00);
+let e = datetime(2026-10-15 17:00:00);
+let SystemNames = dynamic(["svchost.exe", "lsass.exe", "services.exe", "csrss.exe", "winlogon.exe",
+    "smss.exe", "wininit.exe", "spoolsv.exe", "taskhostw.exe", "dllhost.exe", "conhost.exe", "rundll32.exe"]);
+let Proc = SysmonProcess_CL
+    | where Computer contains "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e);
+let d1 = Proc
+    | extend FileName = tolower(tostring(split(Image, @"\")[-1]))
+    | where replace_regex(FileName, @"\d+\.exe$", ".exe") in (SystemNames)
+    | where not(Image has_any (@"\Windows\System32\", @"\Windows\SysWOW64\", @"\Windows\WinSxS\"))
+    | summarize Hits = count(), Example = any(Image)
+    | extend Rule = "D1 masquerade";
+let d2 = Proc
+    | where ParentImage has_any (@"\msedge.exe", @"\chrome.exe", @"\firefox.exe", @"\iexplore.exe")
+    | where Image has_any (@"\Downloads\", @"\AppData\Local\Temp\", @"\Desktop\")
+    | where Image endswith ".exe"
+    | summarize Hits = count(), Example = any(Image)
+    | extend Rule = "D2 browser-launched exe";
+let d3 = Proc
+    | where Image has_any (@"\cmd.exe", @"\powershell.exe", @"\reg.exe",
+        @"\secedit.exe", @"\net.exe", @"\net1.exe")
+    | where ParentImage has_any (@"\Downloads\", @"\Pictures\", @"\AppData\Local\Temp\", @"\Public\")
+    | summarize Hits = count(), Example = any(CommandLine)
+    | extend Rule = "D3 shell from user folder";
+let d4 = SysmonRegistryEvent_CL
+    | where Computer contains "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e)
+    | where EventType == "SetValue" and TargetObject has @"\CurrentVersion\Run"
+    | where Details has_any (@"\Downloads\", @"\Pictures\", @"\AppData\", @"\Temp\",
+        @"\Public\", @"\Documents\")
+    | summarize Hits = count(), Example = any(Details)
+    | extend Rule = "D4 Run key to user folder";
+let d5 = SecurityEvent_CL
+    | where Computer contains "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e)
+    | where EventID == 4624 and toint(LogonType) in (3, 10)
+    | where isnotempty(IpAddress) and IpAddress != "-"
+    | where not(ipv4_is_private(IpAddress)) and IpAddress != "127.0.0.1"
+    | summarize Hits = count(),
+        Example = strcat_array(make_set(strcat(IpAddress, "/", WorkstationName)), ", ")
+    | extend Rule = "D5 public remote logon";
+let d6 = Proc
+    | where (CommandLine contains "localgroup" and CommandLine contains "/add")
+         or (CommandLine contains "secedit" and CommandLine contains "/configure")
+    | where User !has "SYSTEM"
+    | summarize Hits = count(), Example = any(CommandLine)
+    | extend Rule = "D6 escalation attempt";
+let d7 = SysmonNetwork_CL
+    | where Computer contains "NL-WS01"
+    | where todatetime(OriginalTime) between (s .. e)
+    | where tostring(EventID) == "3" and Image has @"\Users\"
+    | where not(Image has_any (@"\AppData\Local\Microsoft\OneDrive\",
+        @"\AppData\Local\Microsoft\Teams\", @"\AppData\Local\Google\Chrome\"))
+    | where tostring(DestinationPort) in ("80", "443", "8080", "8443")
+    | where not(ipv4_is_private(DestinationIp))
+    | summarize Connections = count() by Image
+    | where Connections >= 5
+    | summarize Hits = count(), Example = strcat_array(make_set(Image), ", ")
+    | extend Rule = "D7 user-folder beacon";
+union d1, d2, d3, d4, d5, d6, d7
+| project Rule, Hits, Example
+| order by Rule asc

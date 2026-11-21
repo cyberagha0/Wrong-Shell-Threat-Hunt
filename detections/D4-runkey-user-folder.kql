@@ -1,0 +1,9 @@
+// D4
+// Run key value that points into a user folder
+SysmonRegistryEvent_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where EventType == "SetValue"
+| where TargetObject has @"\CurrentVersion\Run"
+| where Details has_any (@"\Downloads\", @"\Pictures\", @"\AppData\", @"\Temp\",
+    @"\Public\", @"\Documents\")
+| project OriginalTime, Computer, Image, TargetObject, Details

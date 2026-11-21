@@ -1,0 +1,16 @@
+// V2
+// Replay D9 over the hunt day, hour by hour
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4625
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 00:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where isnotempty(IpAddress) and IpAddress != "-"
+| summarize Failures = count(), Accounts = dcount(Account)
+    by IpAddress, Hour = bin(todatetime(OriginalTime), 1h)
+| where Failures >= 20
+| summarize HoursFlagged = count(), PeakPerHour = max(Failures), Total = sum(Failures)
+    by IpAddress
+| order by Total desc

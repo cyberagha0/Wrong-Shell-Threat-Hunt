@@ -1,0 +1,12 @@
+// D3
+// Shell or system tool started by a program that lives in a user-writable folder
+SysmonProcess_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where Image has_any (@"\cmd.exe", @"\powershell.exe", @"\reg.exe",
+    @"\secedit.exe", @"\net.exe", @"\net1.exe")
+| where ParentImage has_any (@"\Downloads\", @"\Pictures\", @"\AppData\Local\Temp\", @"\Public\")
+| summarize Commands = count(),
+    FirstSeen = min(todatetime(OriginalTime)),
+    LastSeen = max(todatetime(OriginalTime)),
+    Sample = make_set(CommandLine, 10)
+    by Computer, ParentImage

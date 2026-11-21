@@ -1,0 +1,8 @@
+// D2
+// Browser starts an executable from Downloads, Temp or Desktop
+SysmonProcess_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where ParentImage has_any (@"\msedge.exe", @"\chrome.exe", @"\firefox.exe", @"\iexplore.exe")
+| where Image has_any (@"\Downloads\", @"\AppData\Local\Temp\", @"\Desktop\")
+| where Image endswith ".exe"
+| project OriginalTime, Computer, User, Image, ParentImage, CommandLine

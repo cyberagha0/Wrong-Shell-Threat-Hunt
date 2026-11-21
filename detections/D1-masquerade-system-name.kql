@@ -1,0 +1,12 @@
+// D1
+// System process name (or a near copy such as svchost1.exe) running outside System32, SysWOW64 or WinSxS
+let SystemNames = dynamic(["svchost.exe", "lsass.exe", "services.exe", "csrss.exe", "winlogon.exe",
+    "smss.exe", "wininit.exe", "spoolsv.exe", "taskhostw.exe", "dllhost.exe", "conhost.exe", "rundll32.exe"]);
+SysmonProcess_CL
+| where todatetime(OriginalTime) > ago(1d)
+| extend FileName = tolower(tostring(split(Image, @"\")[-1]))
+| extend BaseName = replace_regex(FileName, @"\d+\.exe$", ".exe")
+| where BaseName in (SystemNames)
+| where not(Image has_any (@"\Windows\System32\", @"\Windows\SysWOW64\", @"\Windows\WinSxS\"))
+| project OriginalTime, Computer, User, Image, ParentImage, CommandLine,
+    TerminalSessionId, ProcessId

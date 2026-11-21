@@ -1,0 +1,10 @@
+// D9
+// Burst of failed logons from one address (password spraying against the Remote Desktop port)
+SecurityEvent_CL
+| where todatetime(OriginalTime) > ago(1h)
+| where EventID == 4625
+| where isnotempty(IpAddress) and IpAddress != "-"
+| summarize Failures = count(), Accounts = dcount(Account), Sample = make_set(Account, 10)
+    by Computer, IpAddress
+| where Failures >= 20
+| order by Failures desc

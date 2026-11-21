@@ -1,0 +1,14 @@
+// D7
+// Program in a user folder making 5 or more outbound web connections to public addresses
+let KnownUserApps = dynamic([@"\AppData\Local\Microsoft\OneDrive\",
+    @"\AppData\Local\Microsoft\Teams\", @"\AppData\Local\Google\Chrome\"]);
+SysmonNetwork_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where tostring(EventID) == "3"
+| where Image has @"\Users\"
+| where not(Image has_any (KnownUserApps))
+| where tostring(DestinationPort) in ("80", "443", "8080", "8443")
+| where not(ipv4_is_private(DestinationIp))
+| summarize Connections = count(), Destinations = make_set(DestinationIp, 10)
+    by Computer, Image
+| where Connections >= 5

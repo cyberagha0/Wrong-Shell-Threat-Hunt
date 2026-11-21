@@ -1,0 +1,373 @@
+// Wrong Shell threat hunt: hunt and follow-up queries (workspace LAW-HuntPractice)
+
+// ===== Q1 =====
+SysmonNetwork_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+    datetime(2026-10-15 10:00:00) ..
+    datetime(2026-10-15 17:00:00)
+)
+| summarize Connections = count() by Image, DestinationIp, DestinationPort
+| order by Connections desc
+
+// ===== Q2 =====
+SysmonDNS_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+    datetime(2026-10-15 10:00:00) ..
+    datetime(2026-10-15 17:00:00)
+)
+| where Image contains "svchost1.exe"
+| project OriginalTime, Image, QueryName, QueryResults
+| order by OriginalTime asc
+
+// ===== Q3 =====
+SysmonNetwork_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+    datetime(2026-10-15 10:00:00) ..
+    datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\svchost1.exe"
+| summarize
+     Connections = count(),
+     FirstSeen = min(todatetime(OriginalTime)),
+     LastSeen = max(todatetime(OriginalTime))
+     by Image, DestinationIp, DestinationPort
+| order by DestinationIp asc
+
+// ===== Q4 =====
+SysmonNetwork_CL
+| where Campaign == "NL-WS01"
+| where Image endswith @"\svchost1.exe"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| summarize Connections = count()
+      by DestinationIp, DestinationPort
+
+// ===== Q5 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+       datetime(2026-10-15 10:00:00) ..
+       datetime(2026-10-15 17:00:00)
+)
+| where Image contains "svchost1.exe"
+| project OriginalTime, Image, ParentImage, CommandLine, User
+| order by OriginalTime asc
+
+// ===== Q6 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\svchost1.exe"
+| project OriginalTime, Image, ParentImage, CommandLine
+| order by OriginalTime asc
+
+// ===== Q7 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+    datetime(2026-10-15 10:00:00) ..
+    datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\svchost1.exe"
+| project OriginalTime, Image, User, TerminalSessionId
+
+// ===== Q8 =====
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4624
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| project OriginalTime, Account, IpAddress, LogonType, Activity
+| order by OriginalTime asc
+
+// ===== Q9 =====
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4624
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| project OriginalTime, IpAddress, WorkstationName, Account, LogonType
+| order by OriginalTime asc
+
+// ===== Q10 =====
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4624
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| summarize Logons = count(),
+      SourceIPs = make_set(IpAddress)
+      by WorkstationName
+| order by Logons desc
+
+// ===== Q11 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where CommandLine matches regex @"(?i)(^|\s)ls(\s|$)"
+| project OriginalTime, Image, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q12 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\secedit.exe"
+      or CommandLine contains "secedit"
+| project OriginalTime, Image, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q13 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+    datetime(2026-10-15 10:00:00) ..
+    datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\cmd.exe"
+| where CommandLine contains "type "
+| where CommandLine contains "pass"
+    or CommandLine contains "cred"
+| project OriginalTime, CommandLine, ParentImage
+| order by OriginalTime asc
+| take 20
+
+// ===== Q14 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 10:04:22)
+)
+| where CommandLine has_any ("passwords", "credentials", "password", "credential")
+| project OriginalTime, Image, CommandLine, ParentImage, User
+| order by OriginalTime asc
+
+// ===== Q15 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where ParentImage contains "svchost1.exe"
+      or CommandLine contains "download"
+| project OriginalTime, Image, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q16 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where CommandLine contains "download"
+| project OriginalTime, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q17 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where CommandLine matches regex @"(?i)\b(7z|7za|zip|rar|tar|compress-archive|copy|xcopy|robocopy|move)\b"
+| project OriginalTime, Image, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q18 =====
+SysmonFileCreate_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where TargetFilename endswith ".exe"
+| where TargetFilename contains "AppData"
+      or TargetFilename contains "ProgramData"
+      or TargetFilename contains "Users"
+| project OriginalTime, Image, TargetFilename
+| order by OriginalTime asc
+
+// ===== Q19 =====
+SysmonFileCreate_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where TargetFilename endswith ".exe"
+| where TargetFilename !contains "WindowsAzure"
+| extend FolderName = extract(@"\\([^\\]+)\\[^\\]+\.exe$", 1, TargetFilename)
+| project OriginalTime, FolderName, TargetFilename, Image
+| order by OriginalTime asc
+
+// ===== Q20 =====
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where CommandLine matches regex @"(?i)\b(del|erase|remove-item)\b"
+| project OriginalTime, Image, CommandLine, ParentImage
+| order by OriginalTime asc
+
+// ===== Q21 =====
+SysmonRegistryEvent_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where EventType == "SetValue"
+| where TargetObject contains @"\CurrentVersion\Run\"
+| project OriginalTime, TargetObject, Details, Image
+| order by OriginalTime asc
+
+// ===== Q22 =====
+SysmonNetwork_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where Image endswith @"\svchost1.exe"
+      or Image endswith @"\imageloader.exe"
+| summarize Connections = count()
+      by Image, DestinationIp, DestinationPort
+| order by Connections desc
+
+// ===== F1 =====
+// Failed logons and privilege changes in the window (re-run to capture the empty result as an exhibit)
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 00:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where EventID in (4625, 4732, 4704)
+| summarize Events = count() by EventID
+
+// ===== F2 =====
+// Who is connecting to the RDP port (inbound 3389 sources)
+SysmonNetwork_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where DestinationPort == "3389"
+| summarize Connections = count(),
+    FirstSeen = min(todatetime(OriginalTime)),
+    LastSeen = max(todatetime(OriginalTime))
+    by SourceIp
+| order by Connections desc
+
+// ===== F3 =====
+// Was the Run value removed or sarah.cole's password changed before the window closed?
+union
+    (SysmonRegistryEvent_CL
+    | where Campaign == "NL-WS01"
+    | where todatetime(OriginalTime) between (
+          datetime(2026-10-15 15:19:16) ..
+          datetime(2026-10-15 17:00:00)
+    )
+    | where TargetObject contains @"\CurrentVersion\Run"
+    | where EventType in ("DeleteValue", "DeleteKey")
+    | project OriginalTime, Source = "Run key removed", Detail = TargetObject),
+    (SecurityEvent_CL
+    | where Campaign == "NL-WS01"
+    | where todatetime(OriginalTime) between (
+          datetime(2026-10-15 10:00:00) ..
+          datetime(2026-10-15 17:00:00)
+    )
+    | where EventID in (4723, 4724)
+    | project OriginalTime, Source = "Password change or reset", Detail = Account)
+| order by OriginalTime asc
+
+// ===== F4 =====
+// Did the persistent copy ever start, and what launched the Run key write?
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where Image has "imageloader" or ParentImage has "imageloader" or Image endswith @"\reg.exe"
+| project OriginalTime, Image, ParentImage, CommandLine, User
+| order by OriginalTime asc
+
+// ===== F5 =====
+// Logons with the full list of source addresses per client name (E10 cell was cut off)
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4624
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where isnotempty(IpAddress) and IpAddress != "-"
+| summarize Logons = count(), Types = make_set(LogonType) by WorkstationName, IpAddress
+| order by WorkstationName asc
+
+// ===== F6 =====
+// Which accounts are the failed logons aimed at, and from where?
+SecurityEvent_CL
+| where Campaign == "NL-WS01"
+| where EventID == 4625
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 00:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| summarize Failures = count(), Sources = dcount(IpAddress), TopSources = make_set(IpAddress, 5)
+    by Account
+| order by Failures desc
+
+// ===== F7 =====
+// Did imageloader.exe ever start, counted (re-check of F4)
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where Image has "imageloader" or ParentImage has "imageloader" or Image endswith @"\reg.exe"
+| summarize Rows = count(), FirstSeen = min(todatetime(OriginalTime)), LastSeen = max(todatetime(OriginalTime))
+    by Image, ParentImage
+
+// ===== F8 =====
+// Every localgroup, dir and mkdir command in the window, with times
+SysmonProcess_CL
+| where Campaign == "NL-WS01"
+| where todatetime(OriginalTime) between (
+      datetime(2026-10-15 10:00:00) ..
+      datetime(2026-10-15 17:00:00)
+)
+| where CommandLine contains "localgroup"
+     or CommandLine matches regex @"(?i)(^|[\s/])dir(\s|$)"
+     or CommandLine contains "mkdir"
+| project OriginalTime, Image, ParentImage, CommandLine
+| order by OriginalTime asc

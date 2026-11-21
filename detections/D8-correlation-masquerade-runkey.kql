@@ -1,0 +1,20 @@
+// D8
+// Correlation: a D1 masquerade and a D4 Run key on the same host within 24 hours
+let SystemNames = dynamic(["svchost.exe", "lsass.exe", "services.exe", "csrss.exe", "winlogon.exe",
+    "smss.exe", "wininit.exe", "spoolsv.exe", "taskhostw.exe", "dllhost.exe", "conhost.exe", "rundll32.exe"]);
+let masq = SysmonProcess_CL
+    | where todatetime(OriginalTime) > ago(1d)
+    | extend FileName = tolower(tostring(split(Image, @"\")[-1]))
+    | where replace_regex(FileName, @"\d+\.exe$", ".exe") in (SystemNames)
+    | where not(Image has_any (@"\Windows\System32\", @"\Windows\SysWOW64\", @"\Windows\WinSxS\"))
+    | summarize MasqTime = min(todatetime(OriginalTime)), MasqImage = any(Image) by Computer;
+let runkey = SysmonRegistryEvent_CL
+    | where todatetime(OriginalTime) > ago(1d)
+    | where EventType == "SetValue" and TargetObject has @"\CurrentVersion\Run"
+    | where Details has_any (@"\Downloads\", @"\Pictures\", @"\AppData\", @"\Temp\",
+        @"\Public\", @"\Documents\")
+    | summarize RunKeyTime = min(todatetime(OriginalTime)), RunKey = any(TargetObject),
+        RunTarget = any(Details) by Computer;
+masq
+| join kind=inner runkey on Computer
+| project Computer, MasqTime, MasqImage, RunKeyTime, RunKey, RunTarget

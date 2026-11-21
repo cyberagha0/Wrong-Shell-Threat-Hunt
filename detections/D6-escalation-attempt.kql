@@ -1,0 +1,8 @@
+// D6
+// Attempt to grant admin rights or rewrite security policy from a standard session
+SysmonProcess_CL
+| where todatetime(OriginalTime) > ago(1d)
+| where (CommandLine contains "localgroup" and CommandLine contains "/add")
+     or (CommandLine contains "secedit" and CommandLine contains "/configure")
+| where User !has "SYSTEM"
+| project OriginalTime, Computer, User, Image, ParentImage, CommandLine
