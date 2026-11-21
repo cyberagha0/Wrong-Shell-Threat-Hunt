@@ -6,6 +6,8 @@ A threat hunt I ran in a cyber range lab (LOG(N) Pacific, workspace `LAW-HuntPra
 
 > **Lab data.** Every host, user and address here comes from a training range, not a real company.
 
+📄 **Full report:** [WrongShell_Report.pdf](WrongShell_Report.pdf) (28 pages: executive summary, timeline, findings, detections with test results, gaps, response plan, claim register, all queries and every exhibit).
+
 ---
 
 ## Contents
@@ -248,6 +250,7 @@ Defanged so nothing here is clickable.
 ```
 wrong-shell-threat-hunt/
 ├── README.md                 this write-up
+├── WrongShell_Report.pdf     full threat hunt report (public TLP:CLEAR copy)
 ├── detections/               D1 to D9 rules and V1 to V3 replay queries (.kql)
 ├── queries/hunt-queries.kql  every hunt and follow-up query
 └── images/                   screenshots from the hunt
